@@ -26,30 +26,57 @@ MAX_LEN = 3  # segundos
 BATCH_SIZE = 32
 EPOCHS = 5
 LEARNING_RATE = 3e-4
-DATA_DIR = r"C:\Users\saray\Downloads\oyopf\all-sample-des"  # Cambiar según tu ruta
+DATA_DIR = r"C:\Users\saray\Downloads\oyopf\all-sample-des"  # Cambiar según ruta
 
 # 1. Procesamiento de Audio
 class AudioProcessor:
+    """
+    Clase encargada del procesamiento de audio crudo (forma de onda)
+    convirtiéndolo en un espectrograma de Mel normalizado en decibelios.
+
+    Este procesamiento es comúnmente utilizado como entrada para redes
+    neuronales en tareas de clasificación o detección de eventos de audio.
+
+    Atributos:
+        sample_rate (int): Frecuencia de muestreo esperada de los audios.
+        n_mels (int): Número de bandas de Mel a generar.
+        mel_transform (MelSpectrogram): Transformador de onda a Mel.
+        db_transform (AmplitudeToDB): Convertidor de amplitud a decibelios.
+    """
     def __init__(self, sample_rate=22050, n_mels=128):
         self.sample_rate = sample_rate
         self.n_mels = n_mels
+        #Transformar ondas a un espectograma
         self.mel_transform = torchaudio.transforms.MelSpectrogram(
             sample_rate=sample_rate,
-            n_fft=2048,
-            hop_length=512,
+            n_fft=2048, #Fourier para análisis
+            hop_length=512, #Pasos
             n_mels=n_mels,
             power=2
         )
+        #Amplitudes a escala logarítmica de decibelios
         self.db_transform = torchaudio.transforms.AmplitudeToDB()
 
     def process(self, waveform, sample_rate):
+        """
+        Procesa una forma de onda: la re-muestrea, normaliza y transforma
+        en un espectrograma de Mel logarítmico y normalizado.
+
+        Args:
+            waveform (Tensor): Tensor de forma [canales, muestras].
+            sample_rate (int): Frecuencia de muestreo original del audio.
+
+        Returns:
+            Tensor: Espectrograma de Mel de forma [1, n_mels, tiempo].
+        """
+        #Poner todo en una frecuencia
         if sample_rate != self.sample_rate:
             resampler = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=self.sample_rate)
             waveform = resampler(waveform)
-        
+        #Cambiar a monoaudio
         if waveform.shape[0] > 1:
             waveform = torch.mean(waveform, dim=0, keepdim=True)
-            
+        #Definir una duración    
         target_samples = int(self.sample_rate * MAX_LEN)
         if waveform.shape[1] > target_samples:
             waveform = waveform[:, :target_samples]
@@ -65,19 +92,44 @@ class AudioProcessor:
 
 # 2. Dataset
 class InstrumentDataset(Dataset):
+    """
+    Dataset personalizado para audios de instrumentos musicales,
+    organizados por carpetas (una por clase).
+
+    Carga archivos .mp3 o .wav, los transforma a espectrogramas de Mel,
+    y opcionalmente aplica aumento de datos.
+
+    Atributos:
+        processor (AudioProcessor): Instancia para procesar los audios.
+        augment (bool): Si se debe aplicar aumento de datos o no.
+        samples (list): Lista de tuplas (ruta_audio, etiqueta).
+        label_map (dict): Mapeo de índice a nombre de clase.
+        inverse_map (dict): Mapeo de nombre a índice de clase.
+    """
     def __init__(self, data_dir, augment=False, max_samples_per_class=200):
+        """
+        Inicializa el dataset escaneando las carpetas de clases.
+
+        Args:
+            data_dir (str): Ruta al directorio que contiene subcarpetas
+                            (cada una representa una clase).
+            augment (bool): Si se debe aplicar aumento de datos.
+            max_samples_per_class (int): Número máximo de archivos por clase.
+        """
         self.processor = AudioProcessor(SAMPLE_RATE)
         self.augment = augment
         self.samples = []
         self.label_map = {}
         self.inverse_map = {}
         
+        #Analizar subcarpetas
         class_dirs = sorted(glob(os.path.join(data_dir, "*")))
         for class_idx, class_dir in enumerate(class_dirs):
             class_name = os.path.basename(class_dir)
             self.label_map[class_idx] = class_name
             self.inverse_map[class_name] = class_idx
             
+            #Para que lea mp3 o wav
             audio_files = glob(os.path.join(class_dir, "*.mp3")) + glob(os.path.join(class_dir, "*.wav"))
             audio_files = audio_files[:max_samples_per_class]
             
@@ -90,24 +142,41 @@ class InstrumentDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
+        """
+        Devuelve una muestra procesada lista para ser alimentada a un modelo.
+
+        Args:
+            idx (int): Índice de la muestra.
+
+        Returns:
+            Tuple[Tensor, int]: (espectrograma, etiqueta)
+        """
         audio_path, label = self.samples[idx]
         try:
             waveform, sample_rate = torchaudio.load(audio_path)
             spec = self.processor.process(waveform, sample_rate)
-            
+            #Aumentar datos para entrenar
             if self.augment and np.random.random() < 0.5:
                 spec = torch.roll(spec, shifts=np.random.randint(-10, 10), dims=2)
-            
+            #Asegurar las dimensiones
             if spec.dim() == 2:
                 spec = spec.unsqueeze(0)
             return spec, label
             
         except Exception as e:
             print(f"Error procesando {audio_path}: {str(e)}")
+            #Si hay errores, el espectograma es blanco
             dummy = torch.zeros((1, self.processor.n_mels, int(SAMPLE_RATE * MAX_LEN / 512) + 1))
             return dummy, 0
 
     def get_class_weights(self):
+        """
+        Calcula pesos por clase inversamente proporcionales a su frecuencia.
+        Esto permite balancear clases desequilibradas durante el entrenamiento.
+
+        Returns:
+            Tensor: Pesos normalizados por clase (float32).
+        """
         counts = np.bincount([label for _, label in self.samples])
         counts = np.where(counts == 0, 1, counts)
         weights = 1. / counts
@@ -116,6 +185,18 @@ class InstrumentDataset(Dataset):
 
 # 3. Modelo CNN
 class InstrumentCNN(nn.Module):
+    """
+    Modelo simple de red neuronal convolucional (CNN) para clasificación
+    de espectrogramas de Mel.
+
+    Arquitectura:
+        - 3 bloques Conv2D + BatchNorm + ReLU + MaxPool
+        - Flatten + Linear
+
+    Atributos:
+        cnn_layers (Sequential): Capas convolucionales
+        fc (Linear): Capa final de clasificación
+    """
     def __init__(self, num_classes):
         super().__init__()
         self.features = nn.Sequential(
@@ -147,6 +228,15 @@ class InstrumentCNN(nn.Module):
         )
 
     def forward(self, x):
+        """
+        Propagación hacia adelante.
+
+        Args:
+            x (Tensor): Tensor de entrada [batch_size, 1, n_mels, tiempo].
+
+        Returns:
+            Tensor: Logits por clase.
+        """
         if x.dim() == 3:
             x = x.unsqueeze(1)
         x = self.features(x)
@@ -155,6 +245,16 @@ class InstrumentCNN(nn.Module):
 
 # 4. Visualización
 class TrainingVisualizer:
+    """
+    Clase para visualizar el entrenamiento del modelo, incluyendo:
+
+    - Evolución de la pérdida (loss) y precisión (accuracy).
+    - Matriz de confusión.
+    - Reporte de clasificación.
+
+    Args:
+        label_map (dict): Diccionario con el mapeo de índices a nombres de clases.
+    """
     def __init__(self, label_map):
         self.label_map = label_map
         self.train_loss = []
@@ -163,6 +263,18 @@ class TrainingVisualizer:
         self.val_acc = []
         
     def update(self, epoch, tr_loss, val_loss, tr_acc, val_acc, model, val_loader):
+        """
+        Actualiza las métricas y genera visualizaciones cada 5 épocas o al final.
+
+        Args:
+            epoch (int): Número de época actual.
+            tr_loss (float): Pérdida del conjunto de entrenamiento.
+            val_loss (float): Pérdida del conjunto de validación.
+            tr_acc (float): Precisión en entrenamiento.
+            val_acc (float): Precisión en validación.
+            model (nn.Module): Modelo entrenado.
+            val_loader (DataLoader): Dataloader de validación.
+        """
         self.train_loss.append(tr_loss)
         self.val_loss.append(val_loss)
         self.train_acc.append(tr_acc)
@@ -173,6 +285,7 @@ class TrainingVisualizer:
             self._plot_confusion_matrix(model, val_loader)
     
     def _plot_metrics(self):
+        """Genera y guarda un gráfico de la evolución de pérdida y precisión."""
         plt.figure(figsize=(12, 5))
         plt.subplot(1, 2, 1)
         plt.plot(self.train_loss, label='Entrenamiento')
@@ -195,6 +308,13 @@ class TrainingVisualizer:
         plt.close()
     
     def _plot_confusion_matrix(self, model, loader):
+        """
+        Genera y guarda la matriz de confusión junto con un reporte de clasificación.
+
+        Args:
+            model (nn.Module): Modelo entrenado.
+            loader (DataLoader): Loader del conjunto de validación/test.
+        """
         model.eval()
         all_preds = []
         all_labels = []
@@ -225,6 +345,22 @@ class TrainingVisualizer:
 
 # 5. Funciones de Entrenamiento
 def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler, num_epochs, label_map):
+    """
+    Entrena el modelo CNN y guarda los mejores pesos según la precisión en validación.
+
+    Args:
+        model (nn.Module): Modelo a entrenar.
+        train_loader (DataLoader): Datos de entrenamiento.
+        val_loader (DataLoader): Datos de validación.
+        criterion (Loss): Función de pérdida.
+        optimizer (Optimizer): Optimizador.
+        scheduler (LRScheduler): Planificador de tasa de aprendizaje.
+        num_epochs (int): Número de épocas.
+        label_map (dict): Mapeo de clases para visualización.
+
+    Returns:
+        nn.Module: Modelo entrenado con los mejores pesos.
+    """
     visualizer = TrainingVisualizer(label_map)
     best_acc = 0.0
     
@@ -250,6 +386,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
         train_loss = running_loss / len(train_loader.dataset)
         train_acc = running_corrects.double() / len(train_loader.dataset)
         
+        #Validar
         model.eval()
         val_loss = 0.0
         val_corrects = 0
@@ -309,6 +446,18 @@ def create_dataloaders(data_dir, batch_size=32, val_split=0.2):
 
 # 6. Clasificación de Audios Nuevos
 def predict_audio(file_path, model_path='best_model.pth', threshold=0.6, show_spectrogram=True):
+    """
+    Clasifica un archivo de audio y visualiza el espectrograma y la probabilidad por clase.
+
+    Args:
+        file_path (str): Ruta al archivo de audio (.wav).
+        model_path (str): Ruta al modelo entrenado.
+        threshold (float): Umbral de confianza para la predicción.
+        show_spectrogram (bool): Si se desea mostrar el espectrograma.
+
+    Returns:
+        Tuple[str, float]: Clase predicha y confianza asociada.
+    """
     if not hasattr(predict_audio, 'label_map'):
         _, _, predict_audio.label_map = create_dataloaders(DATA_DIR, BATCH_SIZE)
         predict_audio.model = InstrumentCNN(len(predict_audio.label_map)).to(DEVICE)
@@ -355,6 +504,9 @@ def predict_audio(file_path, model_path='best_model.pth', threshold=0.6, show_sp
 
 # 7. Función Principal y Menú
 def main():
+    """
+    Función principal que ejecuta el pipeline completo de entrenamiento.
+    """
     print("=== CLASIFICADOR DE INSTRUMENTOS MUSICALES ===")
     print(f"Dispositivo: {DEVICE}")
     
