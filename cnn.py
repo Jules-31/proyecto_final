@@ -6,15 +6,14 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-import random
-from torch.utils.data import Dataset, DataLoader, random_split, WeightedRandomSampler
+import time
+from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.model_selection import train_test_split
 from glob import glob
 from tqdm import tqdm
-from collections import defaultdict
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -363,8 +362,10 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
     """
     visualizer = TrainingVisualizer(label_map)
     best_acc = 0.0
+    epoch_times = []
     
     for epoch in range(num_epochs):
+        start_time = time.time()
         model.train()
         running_loss = 0.0
         running_corrects = 0
@@ -413,9 +414,22 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
             best_acc = val_acc
             torch.save(model.state_dict(), 'best_model.pth')
         
+        epoch_time = time.time() - start_time
+        epoch_times.append(epoch_time)
+        avg_time = sum(epoch_times) / len(epoch_times)
+        remaining_time = avg_time * (num_epochs - epoch - 1)
+        
         visualizer.update(epoch, train_loss, val_loss, train_acc.item(), val_acc.item(), model, val_loader)
         
-        print(f'Epoch {epoch+1}/{num_epochs} | Train Loss: {train_loss:.4f} Acc: {train_acc:.4f} | Val Loss: {val_loss:.4f} Acc: {val_acc:.4f}')
+        print(f'Epoch {epoch+1}/{num_epochs} | '
+              f'Train Loss: {train_loss:.4f} Acc: {train_acc:.4f} | '
+              f'Val Loss: {val_loss:.4f} Acc: {val_acc:.4f} | '
+              f'Tiempo: {epoch_time:.1f}s | '
+              f'ETA: {remaining_time/60:.1f}min')
+    total_time = sum(epoch_times)
+    avg_epoch_time = total_time / num_epochs
+    print(f'\nEntrenamiento completado en {total_time/60:.1f} minutos')
+    print(f'Tiempo promedio por época: {avg_epoch_time:.1f} segundos')
     
     return model
 
