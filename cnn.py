@@ -25,7 +25,7 @@ MAX_LEN = 3  # segundos
 BATCH_SIZE = 32
 EPOCHS = 5
 LEARNING_RATE = 3e-4
-DATA_DIR = r"C:\Users\saray\Downloads\oyopf\all-sample-des"  # Cambiar según ruta
+DATA_DIR = "ruta/archivo"  # Cambiar según ruta
 
 # 1. Procesamiento de Audio
 class AudioProcessor:
@@ -494,7 +494,7 @@ def predict_audio(file_path, model_path='best_model.pth', threshold=0.6, show_sp
         print(f"\n Audio analizado: {os.path.basename(file_path)}")
         
         if conf >= threshold:
-            print(f"🎵 Predicción: {pred_class} (Confianza: {conf:.2%})")
+            print(f" Predicción: {pred_class} (Confianza: {conf:.2%})")
         else:
             print(f" Predicción incierta: {pred_class} (Confianza: {conf:.2%} < {threshold:.0%})")
         
@@ -524,7 +524,7 @@ def main():
     print("=== CLASIFICADOR DE INSTRUMENTOS MUSICALES ===")
     print(f"Dispositivo: {DEVICE}")
     
-    print("\nCargando dataset...")
+    print("\nCargando dataset")
     train_loader, val_loader, label_map = create_dataloaders(DATA_DIR, BATCH_SIZE)
     
     model = InstrumentCNN(len(label_map)).to(DEVICE)
@@ -535,19 +535,19 @@ def main():
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=1e-4)
     scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
     
-    print("\nIniciando entrenamiento...")
+    print("\nIniciando entrenamiento")
     model = train_model(model, train_loader, val_loader, criterion, optimizer, scheduler, EPOCHS, label_map)
     
-    print("\nEntrenamiento completado!")
+    print("\nEntrenamiento completado")
     print(f"Mejores pesos guardados en: best_model.pth")
 
 if __name__ == "__main__":
-    print("=== MENÚ ===")
+    print("MENÚ")
     print("1. Entrenar modelo")
     print("2. Clasificar un audio")
     print("3. Salir")
 
-    choice = input("Selecciona una opción: ")
+    choice = input("Seleccione una opción: ")
     if choice == "1":
         main()
     elif choice == "2":
@@ -555,8 +555,8 @@ if __name__ == "__main__":
         if os.path.exists(path):
             predict_audio(path)
         else:
-            print(" El archivo no existe. Verifica la ruta.")
+            print(" El archivo no existe. Verifique la ruta.")
     elif choice == "3":
-        print("¡Hasta luego!")
+        print("Adiós")
     else:
         print("Opción no válida.")
