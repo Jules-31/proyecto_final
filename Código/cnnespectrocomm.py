@@ -463,7 +463,17 @@ def predict_audio(file_path, model_path='best_model.pth', threshold=0.6, show_sp
     try:
         waveform, sample_rate = torchaudio.load(file_path) #Cargar archivo de audio
         spec = predict_audio.processor.process(waveform, sample_rate) #Convertir onda en espectrograma de decibelios
-        spec = spec.unsqueeze(0).unsqueeze(0).to(DEVICE) #añade dos dimensiones
+         #estos if son para agrgar las dimensiones en caso de ser necesario
+        if spec.dim() == 2:
+            spec = spec.unsqueeze(0).unsqueeze(0)  # [n_mels, time] → [1, 1, n_mels, time]
+        elif spec.dim() == 3:
+            spec = spec.unsqueeze(1)  # [1, n_mels, time] → [1, 1, n_mels, time]
+        elif spec.dim() == 4:
+            pass  # Ya está bien
+        else:
+            raise ValueError(f"Forma inesperada del espectrograma: {spec.shape}")
+
+        spec = spec.to(DEVICE)
         
         with torch.no_grad():
             outputs = predict_audio.model(spec) #Obtiene logits aka vectores
@@ -523,21 +533,22 @@ def main():
     print(f"Mejores pesos guardados en: best_model.pth")
 
 if __name__ == "__main__":
-    print("MENÚ")
-    print("1. Entrenar modelo")
-    print("2. Clasificar un audio")
-    print("3. Salir")
-
-    choice = input("Seleccione una opción: ")
-    if choice == "1":
-        main()
-    elif choice == "2":
-        path = input("Ruta del archivo de audio: ")
-        if os.path.exists(path):
-            predict_audio(path)
+    while True:
+        print("MENÚ")
+        print("1. Entrenar modelo")
+        print("2. Clasificar un audio")
+        print("3. Salir")
+    
+        choice = input("Seleccione una opción: ")
+        if choice == "1":
+            main()
+        elif choice == "2":
+            path = input("Ruta del archivo de audio: ")
+            if os.path.exists(path):
+                predict_audio(path)
+            else:
+                print(" El archivo no existe. Verifique la ruta.")
+        elif choice == "3":
+            print("Adiós")
         else:
-            print(" El archivo no existe. Verifique la ruta.")
-    elif choice == "3":
-        print("Adiós")
-    else:
-        print("Opción no válida.")
+            print("Opción no válida.")
