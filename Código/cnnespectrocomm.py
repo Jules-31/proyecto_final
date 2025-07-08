@@ -550,5 +550,6 @@ if __name__ == "__main__":
                 print(" El archivo no existe. Verifique la ruta.")
         elif choice == "3":
             print("Adiós")
+            break
         else:
             print("Opción no válida.")
