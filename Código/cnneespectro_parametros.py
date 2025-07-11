@@ -94,7 +94,7 @@ class InstrumentDataset(Dataset):
         label_map (dict): Mapeo de índice a nombre de clase.
         inverse_map (dict): Mapeo de nombre a índice de clase.
     """
-    def __init__(self, data_dir, augment=False, max_samples_per_class=10): #Augment: aumento dedatos, max límite de audios por clase
+    def __init__(self, data_dir, augment=False, max_samples_per_class=200): #Augment: aumento dedatos, max límite de audios por clase
         """
         Inicializa el dataset escaneando las carpetas de clases.
 
@@ -361,6 +361,16 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
     Returns:
         nn.Module: Modelo entrenado con los mejores pesos.
     """
+    # Para tener 2 memorias dependiendo el numero de instrumentos
+    numero_de_instrumentos = int(input("¿Cuántos instrumentos hay por muestra? (1 o 2): "))
+    if numero_de_instrumentos == 1:
+        nombre_modelo = "best_model_1inst.pth"
+    elif numero_de_instrumentos == 2:
+        nombre_modelo = "best_model_2inst.pth"
+    else:
+        print("Número no válido. Se usará nombre por defecto.")
+        nombre_modelo = "best_model.pth"
+        
     visualizer = TrainingVisualizer(label_map) #Objeto para graficar
     best_acc = 0.0 #Almacenar la mejor precisión
     epoch_times = [] #Tiempos por época
@@ -412,9 +422,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
             scheduler.step(val_loss) #Ajusta learning rate de acuerdo a lo puesto y las pe´rdidas si es necesario
         
         if val_acc > best_acc: #si  mejoran los aciertos, los guarda en el .pth
-            
-            best_acc = val_acc
-            torch.save(model.state_dict(), 'best_model.pth')
+            torch.save(model.state_dict(), nombre_modelo)
         
         epoch_time = time.time() - start_time #Calcula timepo de la época
         epoch_times.append(epoch_time)
@@ -432,7 +440,6 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
     avg_epoch_time = total_time / num_epochs
     print(f'\nEntrenamiento completado en {total_time/60:.1f} minutos')
     print(f'Tiempo promedio por época: {avg_epoch_time:.1f} segundos')
-    
     return model
 
 def create_dataloaders(data_dir, batch_size=32, val_split=0.2):
@@ -461,7 +468,7 @@ def create_dataloaders(data_dir, batch_size=32, val_split=0.2):
     return train_loader, val_loader, full_dataset.label_map
 
 # 6. Clasificación de Audios Nuevos
-def predict_audio(data_dir, file_path, model_path='best_model.pth', threshold=0.6, show_spectrogram=True): #Threshold, minimo de confianza
+def predict_audio(data_dir, file_path, threshold=0.6, show_spectrogram=True): # Threshold, minimo de confianza
     """
     Clasifica un archivo de audio y visualiza el espectrograma y la probabilidad por clase.
 
@@ -474,11 +481,10 @@ def predict_audio(data_dir, file_path, model_path='best_model.pth', threshold=0.
     Returns:
         Tuple[str, float]: Clase predicha y confianza asociada.
     """
-    if not hasattr(predict_audio, 'label_map'):  #Ejecutar una vez por sesión
-        _, _, predict_audio.label_map = create_dataloaders(data_dir, BATCH_SIZE) #Nombres de clases ordenados
-        predict_audio.model = InstrumentCNN(len(predict_audio.label_map)).to(DEVICE) #Crear cnn con cantidad correcta de clases
-        predict_audio.model.load_state_dict(torch.load(model_path)) #Cargar pesos entrenados del .pth
-        predict_audio.model.eval() #Evalua modelo
+    modelos = ["best_model_2inst.pth", "best_model_1inst.pth"]
+        
+    if not hasattr(predict_audio, 'label_map'):  # Ejecutar una vez por sesión
+        _, _, predict_audio.label_map = create_dataloaders(data_dir, BATCH_SIZE) # Nombres de clases ordenados
         predict_audio.processor = AudioProcessor(SAMPLE_RATE) #Genera espectrrograma
     
     try:
@@ -496,34 +502,38 @@ def predict_audio(data_dir, file_path, model_path='best_model.pth', threshold=0.
 
         spec = spec.to(DEVICE)
         
-        with torch.no_grad():
-            outputs = predict_audio.model(spec) #Obtiene logits aka vectores
-            probs = F.softmax(outputs, dim=1) #Convierte logit en probabilidad
-            conf, pred = torch.max(probs, 1) #Indice clase mas probable y confianza
-            conf = conf.item()
-            pred_class = predict_audio.label_map[pred.item()] #Convertir a valores de py normales, float str
-        
-        print(f"\n Audio analizado: {os.path.basename(file_path)}")
-        
-        if conf >= threshold:
-            print(f" Predicción: {pred_class} (Confianza: {conf:.2%})") #Si confianza supea umbral, muestra la clase, si no, la prediccion no es confiables
-        else:
-            print(f" Predicción incierta: {pred_class} (Confianza: {conf:.2%} < {threshold:.0%})") #Clases con su  probabilidad
-        
-        print("\nDistribución de probabilidades:")
-        for i, prob in enumerate(probs.squeeze().cpu().numpy()):
-            print(f"- {predict_audio.label_map[i]}: {prob:.2%}")
-        
-        if show_spectrogram:
-            plt.figure(figsize=(10, 4))
-            plt.imshow(spec.squeeze().cpu().numpy(), aspect='auto', origin='lower')
-            plt.title(f"Espectrograma | Pred: {pred_class} ({conf:.2%})")
-            plt.colorbar()
-            plt.tight_layout()
-            plt.show()
-        
+        # clasificacion con cada modelo dependiendo el treshold
+        for ruta in modelos: # lo haria para cada ruta
+            predict_audio.model = InstrumentCNN(len(predict_audio.label_map)).to(DEVICE)
+            predict_audio.model.load_state_dict(torch.load(ruta))
+            predict_audio.model.eval()
+            
+            with torch.no_grad():
+                outputs = predict_audio.model(spec) #Obtiene logits aka vectores
+                probs = F.softmax(outputs, dim=1) #Convierte logit en probabilidad
+                conf, pred = torch.max(probs, 1) #Indice clase mas probable y confianza
+                conf = conf.item()
+                pred_class = predict_audio.label_map[pred.item()] #Convertir a valores de py normales, float str
+            print(f"\n Modelo usado: {ruta}")
+            print(f"Audio analizado: {os.path.basename(file_path)}")
+            print(f"Predicción: {pred_class} (Confianza: {conf:.2%})")
+            print("\nDistribución de probabilidades:")
+            for i, prob in enumerate(probs.squeeze().cpu().numpy()):
+                print(f"- {predict_audio.label_map[i]}: {prob:.2%}")
+                
+            if show_spectrogram: #espectrograma
+                plt.figure(figsize=(10, 4))
+                plt.imshow(spec.squeeze().cpu().numpy(), aspect='auto', origin='lower')
+                plt.title(f"Espectrograma | Pred: {pred_class} ({conf:.2%})")
+                plt.colorbar()
+                plt.tight_layout()
+                plt.show()
+            if conf >= threshold:
+                return pred_class, conf
+            # Si ningún modelo alcanzó el threshold, devolver última predicción
+        print("\n Ningún modelo alcanzó el umbral. Se devuelve la última predicción.")
         return pred_class, conf
-    
+
     except Exception as e:
         print(f"Error procesando el audio: {str(e)}")
         return None, None
