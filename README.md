@@ -38,6 +38,7 @@ quiera proporcionar.
             ...
 
 (Al correr el código)
+
 3. Cuando corra el código se imprimirá un menú en la terminal el cuál tendrá las siguientes opciones
     1. Entrenar modelo
     * Cómo ya modificó los parámetros mencionados anteriormente, para el entrenamiento sólo debería seleccionar esta opción y esperar a que se complete.
@@ -60,6 +61,7 @@ quiera proporcionar.
 Este código es ligeramente diferente en estructura, sin embargo guarda las características principales mencionadas anteriormente.
 
 *Consideraciones*
+
     - Este código funciona con 2 archivos de memoria, en el git encontrará archivos titulados "Caso particular", "best_model_1inst.pth" y "best_model_2inst.pth" los cuales corresponderán al entrenamiento realizado con las combinaciones de instrumentos y a los instrumentos individuales. Si desea correr este código deberá descargar ambos archivos de memoria.
     - Habrá algunas diferencias en la interfaz con el usuario, deberá digitar las épocas y la ruta directamente al ejecutar la opción 1 y se le pedirá decir si el entrenamiento se hará con tomas individuales o combinadas.
     - Para la clasificación, la funcionalidad es la misma.
