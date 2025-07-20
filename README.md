@@ -70,9 +70,13 @@ Cómo última aclaración, el código del caso particular presenta algunas falla
 
 # Carpetas
 *Audios*: en esta carpeta se encontrar los audios utilizados para probar el funcionamiento de las redes neuronales.
+
 *Código*: en esta carpeta se encuentran los códigos documentados para cada caso.
+
 *Memorias*: en esta carpeta se encuentran los mejores caminos, los cuales se obtuvieron al entrenar las redes neuronales.
+
 *PDF*: en esta carpeta se encuentran parte de las referencias utilizadas.
+
 *Graficas*: en esta carpeta se encuentran gráficas obtenidas para cada red neuronal con distintos cambios.
 
 # Notas de Licencia
