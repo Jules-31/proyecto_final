@@ -68,7 +68,7 @@ Este código es ligeramente diferente en estructura, sin embargo guarda las cara
 
 Cómo última aclaración, el código del caso particular presenta algunas fallas que no pudieron solventarse y su funcionalidad no es la deseada, así que es el más propenso a presentar fallas si se llega a correr.
 
-#Carpetas
+# Carpetas
 *Audios*: en esta carpeta se encontrar los audios utilizados para probar el funcionamiento de las redes neuronales.
 *Código*: en esta carpeta se encuentran los códigos documentados para cada caso.
 *Memorias*: en esta carpeta se encuentran los mejores caminos, los cuales se obtuvieron al entrenar las redes neuronales.
