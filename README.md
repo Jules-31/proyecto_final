@@ -1,6 +1,4 @@
-# Oyito
-Neurona para identificar instrumentos 
-Proyecto de oscilaciones y ondas, y herramientas computacionales 
+# Proyecto herramientas computacionales y oscilaciones y ondas
 
 En este proyecto se utilizan diversas librerías y se modifican códigos previamente implementados para formar un algoritmo que pueda aprender e identificar
 instrumentos a partir de un entrenamiento de n épocas, dónde estudia el espectro de Fourier para cada muestra y luego clasifica alguna muestra que el usuario
