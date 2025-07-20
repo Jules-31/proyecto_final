@@ -23,11 +23,11 @@ quiera proporcionar.
 # ¿Cómo ejecutarlo?
 
 (Antes de correr el código)
-1. Los códigos tendrán ligeras variaciones pero en principio deberá de modificar los siguientes parámetros para su funcionamiento
-    Inicialmente la instalación de las bibliotecas previas
-    Contar con una base de datos (ya sea la que se usó en este proyecto y estará reeferenciada en el github o una distinta)
+1. Los códigos tendrán ligeras variaciones pero en principio deberá modificar los siguientes parámetros para su funcionamiento:
+    -Inicialmente la instalación de las bibliotecas previas.
+    -Contar con una base de datos (ya sea la que se usó en este proyecto y estará reeferenciada en el github o una distinta). Importante que los udios esten en formato .wav o .mp3.
 
-2. Dentro de las primeras lineas de código encontrará un apartado que dice "Configuración", es ahí donde tendrá que modificar lo siguiente
+3. Dentro de las primeras lineas de código encontrará un apartado que dice "Configuración", es ahí donde tendrá que modificar lo siguiente
     EPOCHS: Esto determinará cuántas épocas quiere que entrene el algoritmo, si bien el más rápido en completar el entrenamiento fue el que utilizaba espectros de mel,  
      dentro de las pruebas no se superaron las 500 épocas.
     DATA-DIR: Aquí digitará la ruta en la que se encuentran sus archivos para el entrenamiento, asegurese de que sea una carpeta que siga esta estructura para evitar errores:
@@ -44,11 +44,11 @@ quiera proporcionar.
     * Cómo ya modificó los parámetros mencionados anteriormente, para el entrenamiento sólo debería seleccionar esta opción y esperar a que se complete.
 
     2. Clasificar audio
-    * Esta es una opción post-entrenamiento, debido a que no funcionará si la red no tiene ya una memoria y datos para relacionar, sin embargo si quiere ahorrar el      proceso de entrenamiento se le recomienda que descargue uno de los archivos "best_model_.pth" del github que son archivos de memoria de los entrenamientos realizados por el grupo de trabajo, para posteriormente dentro de una misma carpeta tenga: el código de la red neuronal, el archivo "best_model" y la carpeta principal.
+    * Esta es una opción post-entrenamiento, debido a que no funcionará si la red no tiene ya una memoria y datos para relacionar, sin embargo si quiere ahorrar el proceso de entrenamiento se le recomienda que descargue uno de los archivos "best_model_.pth" del github que son archivos de memoria de los entrenamientos realizados por el grupo de trabajo, para incluirlo dentro de la misma carpeta donde tenga el código de la red neuronal. Inportante no cambiar el nombre de este archivo. Fijarse bien a que entrenamiento corresponde el archivo descargado.
 
     --Si igualmente desea realizar el entrenamiento omita la explicación anterior, pues el algoritmo generará una memoria "best_model" al completar el entrenamiento.--
 
-    Al seleccionar la opción de clasificación, se le pedirá que digite la ruta en la cuál está la toma que desea clasificar, asegurese de digitarla completa hasta llegar al archivo .wav o .mp3. 
+    Al seleccionar la opción de clasificación, se le pedirá que digite la ruta en la cuál está el aidio que desea clasificar, asegurese de digitarla completa hasta llegar al archivo .wav o .mp3. 
     *Importante* No es necesario que el audio de prueba pertenezca a la carpeta principal, este puede ser ajeno a la misma y tener una ubicación diferente
 
     3. Salir
