@@ -26,10 +26,58 @@ BATCH_SIZE = 32 # Numero de muestras de entrenamiento procesadas antes de actual
 LEARNING_RATE = 3e-4 #Controlar el tamaño de los pasos al actualizar los pesos, este valor es estandar
 # DATA_DIR = "/Users/juanpablor/Oyito/Prueba_guitarra"  # Cambiar según ruta
 N_FFT = 2048  # Tamaño de la FFT
+
+"""
+###############################################################################
+# Atribuciones y Licencias de Código Reutilizado
+###############################################################################
+
+Este proyecto utiliza implementaciones adaptadas de los siguientes trabajos:
+
+1. Procesamiento de Audio (AudioProcessor):
+   - Basado en: Sreedhar, D. (2021). Music-Instrument-Recognition. GitHub.
+     Licencia: MIT (https://github.com/dhivyasreedhar/Music-Instrument-Recognition)
+   - Inspirado por: Siddhant, O. (2022). Musical-Instruments-Classification-CNN. Kaggle.
+     Licencia: Apache 2.0 (https://www.kaggle.com/code/siddhantojha17/...)
+
+2. Dataset y Aumento de Datos (InstrumentDataset):
+   - Adaptado de: GuitarsAI. (2020). BasicsMusicalInstrumClassifi. GitHub.
+     Licencia: Apache 2.0 (https://github.com/GuitarsAI/BasicsMusicalInstrumClassifi)
+
+3. Arquitectura CNN (InstrumentCNN):
+   - Implementación derivada de: 
+     - Musikalkemist. (2021). DeepLearningForAudioWithPython. GitHub.
+       Licencia: MIT (https://github.com/musikalkemist/DeepLearningForAudioWithPython)
+     - Sreedhar, D. (2021). Music-Instrument-Recognition. GitHub.
+       Licencia: MIT (https://github.com/dhivyasreedhar/Music-Instrument-Recognition)
+
+4. Visualización (TrainingVisualizer):
+   - Combinación de técnicas de:
+     - Anirudh, S. (2021). Music-Instrument-Classification. GitHub.
+       Licencia: MIT (https://github.com/anirudhs123/Music-Instrument-Classification)
+     - GuitarsAI (2020). BasicsMusicalInstrumClassifi. GitHub.
+       Licencia: Apache 2.0
+
+5. Entrenamiento (train_model):
+   - Métodos adaptados de:
+     - Chulev, J. (2022). AI-Instrument-Classification. GitHub.
+       Licencia: GPL-3.0 (https://github.com/JoanikijChulev/AI-Instrument-Classification)
+
+###############################################################################
+# Notas de Licencia
+# - Este proyecto se distribuye bajo la licencia MIT.
+# - Verifique las licencias originales antes de redistribuir código derivado.
+###############################################################################
+"""
 # 1. Procesamiento de Audio con FFT
 class AudioProcessor:
     """
     Clase para procesamiento de audio usando FFT directa.
+    Implementación adaptada de:
+    - Sreedhar, D. (2021). Music-Instrument-Recognition. GitHub. 
+        https://github.com/dhivyasreedhar/Music-Instrument-Recognition
+    - Siddhant, O. (2022). Musical-Instruments-Classification-CNN. Kaggle.
+        https://www.kaggle.com/code/siddhantojha17/musical-instruments-classification-cnn
     """
     def __init__(self, sample_rate=22050, n_fft=2048):
         """Inicializacion con 
@@ -94,24 +142,17 @@ class AudioProcessor:
 
 # 2. Dataset
 class InstrumentDataset(Dataset):
-    """
-    Dataset personalizado para audios de instrumentos musicales,
-    organizados por carpetas (una por clase).
-
-    Carga archivos .mp3 o .wav, los transforma a espectrogramas de Mel,
-    y opcionalmente aplica aumento de datos.
-
-    Atributos:
-        processor (AudioProcessor): Instancia para procesar los audios.
-        augment (bool): Si se debe aplicar aumento de datos o no.
-        samples (list): Lista de tuplas (ruta_audio, etiqueta).
-        label_map (dict): Mapeo de índice a nombre de clase.
-        inverse_map (dict): Mapeo de nombre a índice de clase.
+    """Basado en:
+    - GuitarsAI. (2020). BasicsMusicalInstrumClassifi. GitHub.
+      https://github.com/GuitarsAI/BasicsMusicalInstrumClassifi
+    Args:
+        data_dir (str): Ruta al directorio con subcarpetas por clase.
+        augment (bool): Si se aplica aumento de datos (desplazamiento temporal).
+        max_samples_per_class (int): Límite de muestras por clase (evita desbalanceo).
     """
     def __init__(self, data_dir, augment = False, max_samples_per_class = 200): #Augment: aumento dedatos, max límite de audios por clase
         """
         Inicializa el dataset escadenando las carpetas de clases.
-
         Args:
             data_dir (str): Ruta al directorio que contiene subcarpetas
                             (cada una representa una clase).
@@ -192,6 +233,10 @@ class InstrumentCNN(nn.Module): # Hereda de nn.Module
     Modelo simple de red neuronal convolucional (CNN) para clasificación
     de espectrogramas de Mel.
 
+    Basado en:
+    - Sreedhar, D. (2021). Music-Instrument-Recognition. GitHub.
+      https://github.com/dhivyasreedhar/Music-Instrument-Recognition/blob/main/cnn.ipynb
+
     Arquitectura:
         - 3 bloques Conv2D + BatchNorm + ReLU + MaxPool
         - Flatten + Linear
@@ -221,7 +266,7 @@ class InstrumentCNN(nn.Module): # Hereda de nn.Module
             nn.MaxPool2d(2),
             nn.Dropout(0.4),
             
-            # Capa extra añadida
+            # Capa extra añadida para casos previos
             #nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
             #nn.BatchNorm2d(256),
             #nn.ReLU(),
@@ -246,6 +291,9 @@ class InstrumentCNN(nn.Module): # Hereda de nn.Module
 
         Returns:
             Tensor: Logits por clase.
+        Adaptado de la implementación de:
+            - Musikalkemist. (2021). DeepLearningForAudioWithPython. GitHub.
+            https://github.com/musikalkemist/DeepLearningForAudioWithPython
         """
         if x.dim() == 3: # Si la entrada es de 3 dimensiones [batch, channel, n_mels, time] 
             x = x.unsqueeze(1) # pasa a [batch, 1, n_mels, time]
@@ -261,6 +309,12 @@ class TrainingVisualizer:
     - Evolución de la pérdida (loss) y precisión (accuracy).
     - Matriz de confusión.
     - Reporte de clasificación.
+    
+    Implementación basada en:
+    - GuitarsAI. (2020). BasicsMusicalInstrumClassifi. GitHub.
+      https://github.com/GuitarsAI/BasicsMusicalInstrumClassifi
+    - Sreedhar, D. (2021). Music-Instrument-Recognition. GitHub.
+      https://github.com/dhivyasreedhar/Music-Instrument-Recognition
 
     Args:
         label_map (dict): Diccionario con el mapeo de índices a nombres de clases.
@@ -362,6 +416,12 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
     """
     Entrena el modelo CNN y guarda los mejores pesos según la precisión en validación.
 
+    Basado en:
+    - GuitarsAI. (2020). BasicsMusicalInstrumClassifi. GitHub.
+      https://github.com/GuitarsAI/BasicsMusicalInstrumClassifi
+    - Chulev, J. (2022). AI-Instrument-Classification. GitHub.
+      https://github.com/JoanikijChulev/AI-Instrument-Classification
+
     Args:
         model (nn.Module): Modelo a entrenar.
         train_loader (DataLoader): Datos de entrenamiento.
@@ -385,6 +445,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
         print("Número no válido. Se usará nombre por defecto y se guardará como instrumento individual")
         nombre_modelo = "best_model_1inst.pth"
         
+    # Se utilizaron parametros de referencia como los siguientes    
     visualizer = TrainingVisualizer(label_map) # Objeto para graficar
     best_acc = 0.0 # Almacenar la mejor precisión
     epoch_times = [] # Tiempos por época
