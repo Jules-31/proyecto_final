@@ -1,0 +1,71 @@
+import os
+import numpy as np
+from scipy.io import wavfile
+from scipy.io.wavfile import write as wav_write
+
+# Ruta raíz
+carpeta_raiz = "/Users/juanpablor/Oyito/Prueba_guitarra"  # cambiar con ruta
+
+# Buscar subcarpetas de la carpeta raiz
+subcarpetas = [os.path.join(carpeta_raiz, d) for d in os.listdir(carpeta_raiz)
+               if os.path.isdir(os.path.join(carpeta_raiz, d))]
+
+if len(subcarpetas) != 2: # esto para el caso particular
+    raise ValueError("Debe haber 2 subcarpetas para combinar audios.")
+
+# Obtener todos los .wav
+extensiones = ('.wav',)
+
+archivos_1 = sorted([os.path.join(subcarpetas[0], f) for f in os.listdir(subcarpetas[0]) if f.endswith(extensiones)])
+archivos_2 = sorted([os.path.join(subcarpetas[1], f) for f in os.listdir(subcarpetas[1]) if f.endswith(extensiones)])
+
+# Definir cuántos pares para combinar
+num_combinaciones = 200  
+
+# Verifica que haya suficientes archivos en ambas carpetas y se usaria el minimo
+min_archivos = min(len(archivos_1), len(archivos_2))
+if num_combinaciones > min_archivos:
+    print(f"Solo hay {min_archivos} archivos disponibles en ambas carpetas. Se usarán esos.")
+    num_combinaciones = min_archivos
+
+# Limitar los archivos a la cantidad deseada
+archivos_1 = archivos_1[:num_combinaciones]
+archivos_2 = archivos_2[:num_combinaciones]
+
+# Crear carpeta de salida
+salida_dir = os.path.join(carpeta_raiz, "Sumados")
+os.makedirs(salida_dir, exist_ok=True)
+
+# Función para cargar audio 
+def cargar_audio(path):
+    sr, data = wavfile.read(path) # lee el archivo
+    if data.ndim > 1:  # Estéreo a mono promediando canales
+        data = data.mean(axis=1)
+    return sr, data.astype(np.float32) # por referencia al codigo de la red, la normalizacion
+
+# Bucle para combinar 1 a 1
+contador = 0
+for path1, path2 in zip(archivos_1, archivos_2):
+    sr1, audio1 = cargar_audio(path1)
+    sr2, audio2 = cargar_audio(path2)
+    if sr1 != sr2:
+        continue
+    # Igualar longitud
+    min_len = min(len(audio1), len(audio2))
+    audio1 = audio1[:min_len]
+    audio2 = audio2[:min_len]
+
+    # Sumar y normalizar
+    suma = audio1 + audio2
+    max_val = np.max(np.abs(suma)) # se saca el maximo 
+    
+    if max_val > 0: # se normaliza
+        suma = suma / max_val
+    # Guardar resultado de combinacion
+    nombre1 = os.path.splitext(os.path.basename(path1))[0]
+    nombre2 = os.path.splitext(os.path.basename(path2))[0]
+    salida_path = os.path.join(salida_dir, f"{nombre1}__{nombre2}.wav")
+    wav_write(salida_path, sr1, suma)
+    contador += 1
+
+print(f"{contador} combinaciones guardadas en '{salida_dir}'")
